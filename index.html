@@ -257,7 +257,7 @@ async function boot(){
   PROJECTS=list;
   const ov=el("a","tab");ov.href="#overview";ov.dataset.slug="overview";ov.appendChild(el("span",null,"Overview"));ov.appendChild(el("small",null,list.length+" projects"));tabs.appendChild(ov);
   list.forEach(p=>{const a=el("a","tab");a.href="#"+p.slug;a.dataset.slug=p.slug;a.appendChild(el("span",null,p.short_name));a.appendChild(el("small",null,strip(p.status?p.status.pill:p.kind)));tabs.appendChild(a)});
-  const dt=el("a","tab");dt.href="#data";dt.dataset.slug="data";dt.appendChild(el("span",null,"Neighborhood data"));dt.appendChild(el("small",null,"Census · 2010–2024"));tabs.appendChild(dt);
+  const dt=el("a","tab");dt.href="#data";dt.dataset.slug="data";dt.appendChild(el("span",null,"Neighborhood data"));dt.appendChild(el("small",null,"Census data"));tabs.appendChild(dt);
   const want=location.hash.slice(1);
   show(list.some(p=>p.slug===want)||want==="data"?want:"overview");
 }
@@ -381,13 +381,13 @@ function sourcesSec(p){
   s.appendChild(ol);return s;
 }
 
-const YRS=["2010","2015","2019","2024"];
+let YRS=["2010","2015","2019","2024"],LATEST="2024";
 const BH_GEOS=["000100","000301","000501","000502","000700","000900"].map(t=>"1400000US36047"+t).join(",");
 const TABLE={population:"B01003",pct_under_18:"B01001",pct_65_plus:"B01001",pct_households_with_children:"B11005",persons_per_household:"B11001",
  pct_foreign_born:"B05002",pct_white_nh:"B03002",pct_black_nh:"B03002",pct_asian_nh:"B03002",pct_hispanic:"B03002",pct_other_multi:"B03002",
- median_household_income:"B19001",median_household_income_2024usd:"B19001",mean_household_income_2024usd:"B19025",pct_poverty:"B17001",pct_bachelors_plus:"B15003",
+ median_household_income:"B19001",median_household_income_real:"B19001",mean_household_income_real:"B19025",pct_poverty:"B17001",pct_bachelors_plus:"B15003",
  households:"B11001",housing_units:"B25001",pct_vacant:"B25002",pct_owner_occupied:"B25003",pct_renter_occupied:"B25003",pct_owner_homes_1m_plus:"B25075",
- mean_gross_rent_2024usd:"B25065",pct_rent_burdened:"B25070",pct_households_no_car:"B25044",pct_renter_households_no_car:"B25044",pct_owner_households_no_car:"B25044",
+ mean_gross_rent_real:"B25065",pct_rent_burdened:"B25070",pct_households_no_car:"B25044",pct_renter_households_no_car:"B25044",pct_owner_households_no_car:"B25044",
  vehicles_available:"B25044",vehicles_per_household:"B25044",pct_commute_transit:"B08301",pct_work_from_home:"B08301",pct_commute_walk:"B08301",pct_commute_drive:"B08301",pct_commute_bike:"B08301"};
 const TNAME={B01003:"Total population",B01001:"Sex by age",B11005:"Households by presence of people under 18",B11001:"Household type",B05002:"Place of birth by nativity",
  B03002:"Hispanic or Latino origin by race",B19001:"Household income in the past 12 months",B19025:"Aggregate household income",B17001:"Poverty status in the past 12 months",
@@ -395,18 +395,18 @@ const TNAME={B01003:"Total population",B01001:"Sex by age",B11005:"Households by
  B25065:"Aggregate gross rent (with B25063, units paying cash rent)",B25070:"Gross rent as a percentage of household income",B25044:"Tenure by vehicles available",B08301:"Means of transportation to work"};
 let DSRC=[];
 function tableUrl(t,y){if(t==="B15003"&&y==="2010")t="B15002";return "https://data.census.gov/table/ACSDT5Y"+y+"."+t+"?g="+BH_GEOS}
-function dsup(t){let n=DSRC.indexOf(t);if(n<0){DSRC.push(t);n=DSRC.length-1}return '<sup class="cite"><a href="'+esc(tableUrl(t,"2024"))+'" target="_blank" rel="noopener" title="Census ACS table '+t+': '+esc(TNAME[t]||"")+'">'+(n+1)+'</a></sup>'}
+function dsup(t){let n=DSRC.indexOf(t);if(n<0){DSRC.push(t);n=DSRC.length-1}return '<sup class="cite"><a href="'+esc(tableUrl(t,LATEST))+'" target="_blank" rel="noopener" title="Census ACS table '+t+': '+esc(TNAME[t]||"")+'">'+(n+1)+'</a></sup>'}
 function dcite(h){return String(h).replace(/\s*\[\[m:(\w+)\]\]/g,(m,k)=>TABLE[k]?dsup(TABLE[k]):"").replace(/\s*\[\[(\w+)\]\]/g,(m,id)=>{const x=(window.PROF_SRC||{})[id];if(!x)return"";let n=DSRC.indexOf("src:"+id);if(n<0){DSRC.push("src:"+id);n=DSRC.length-1}return '<sup class="cite"><a href="'+esc(x.url)+'" target="_blank" rel="noopener" title="'+esc(x.title)+'">'+(n+1)+'</a></sup>'})}
 const M={
  population:{l:"Population",f:"int"},pct_under_18:{l:"Under 18",f:"pct"},pct_65_plus:{l:"65 and older",f:"pct"},
  pct_households_with_children:{l:"Households with children",f:"pct"},persons_per_household:{l:"People per household",f:"dec"},
  pct_foreign_born:{l:"Born outside the U.S.",f:"pct"},pct_white_nh:{l:"White (non-Hispanic)",f:"pct"},pct_black_nh:{l:"Black (non-Hispanic)",f:"pct"},
  pct_asian_nh:{l:"Asian (non-Hispanic)",f:"pct"},pct_hispanic:{l:"Hispanic or Latino",f:"pct"},pct_other_multi:{l:"Other or multiracial",f:"pct"},
- median_household_income_2024usd:{l:"Median household income (2024 $)",f:"usd"},mean_household_income_2024usd:{l:"Mean household income (2024 $)",f:"usd"},
+ median_household_income_real:{l:"Median household income (today's $)",f:"usd"},mean_household_income_real:{l:"Mean household income (today's $)",f:"usd"},
  pct_poverty:{l:"Below the poverty line",f:"pct"},pct_bachelors_plus:{l:"Adults with a bachelor's degree or more",f:"pct"},
  households:{l:"Households",f:"int"},housing_units:{l:"Housing units",f:"int"},pct_vacant:{l:"Vacant units",f:"pct"},
  pct_owner_occupied:{l:"Owner-occupied homes",f:"pct"},pct_owner_homes_1m_plus:{l:"Owned homes valued $1M+",f:"pct"},
- mean_gross_rent_2024usd:{l:"Average rent incl. utilities (2024 $)",f:"usd"},pct_rent_burdened:{l:"Renters paying 30%+ of income",f:"pct"},
+ mean_gross_rent_real:{l:"Average rent incl. utilities (today's $)",f:"usd"},pct_rent_burdened:{l:"Renters paying 30%+ of income",f:"pct"},
  pct_households_no_car:{l:"Households without a car",f:"pct"},pct_renter_households_no_car:{l:"Renter households without a car",f:"pct"},
  pct_owner_households_no_car:{l:"Owner households without a car",f:"pct"},vehicles_available:{l:"Vehicles kept by residents",f:"int"},
  vehicles_per_household:{l:"Vehicles per household",f:"dec"},pct_commute_transit:{l:"Commute by transit",f:"pct"},
@@ -427,11 +427,11 @@ function mini(prof,key){
   svg.appendChild(mk("path",{class:"ln",d:"M"+pts.map(p=>p.join(",")).join("L")}));
   vals.forEach((v,i)=>{if(v==null)return;const c=mk("circle",{cx:x(i),cy:y(v),r:4});svg.appendChild(c);
     const hit=mk("circle",{class:"hit",cx:x(i),cy:y(v),r:14});const t=mk("title",{});t.textContent=prof.acs_periods[YRS[i]]+": "+fv(v,m.f);hit.appendChild(t);svg.appendChild(hit);
-    const lab=mk("text",{x:x(i),y:H-4,"text-anchor":i===0?"start":i===YRS.length-1?"end":"middle"});lab.textContent=YRS[i]==="2010"?"2006–10":YRS[i]==="2024"?"2020–24":prof.acs_periods[YRS[i]];svg.appendChild(lab);
+    const lab=mk("text",{x:x(i),y:H-4,"text-anchor":i===0?"start":i===YRS.length-1?"end":"middle"});lab.textContent=prof.acs_periods[YRS[i]];svg.appendChild(lab);
     if(i===0||i===YRS.length-1){const vl=mk("text",{class:"val",x:x(i),y:y(v)-8,"text-anchor":i===0?"start":"end"});vl.textContent=fshort(v,m.f);svg.appendChild(vl)}});
   card.appendChild(svg);
-  const bk=prof.acs["2024"].brooklyn[key],ny=prof.acs["2024"].nyc[key];
-  card.appendChild(el("div","ref","2020–24: Brooklyn "+fv(bk,m.f)+" · NYC "+fv(ny,m.f)));
+  const bk=prof.acs[LATEST].brooklyn[key],ny=prof.acs[LATEST].nyc[key];
+  card.appendChild(el("div","ref",prof.acs_periods[LATEST]+": Brooklyn "+fv(bk,m.f)+" · NYC "+fv(ny,m.f)));
   const t=TABLE[key];if(t){const sl=html("div","src","Source: Census ACS 5-year, table "+t+dsup(t)+" · ");YRS.forEach((y,i)=>{sl.appendChild(link(prof.acs_periods[y],tableUrl(t,y)));sl.appendChild(document.createTextNode(i<YRS.length-1?", ":" · "))});sl.appendChild(link("saved data",api("api/profile/raw/"+t)));card.appendChild(sl)}
   return card;
 }
@@ -439,9 +439,9 @@ async function dataPage(){
   document.title="Neighborhood data · Neighborhood Projects";
   const v=document.getElementById("view");v.textContent="";
   const r=await fetch(api("api/profile"));if(!r.ok){v.appendChild(el("p","loading","The data hasn't been built yet."));return}
-  DSRC=[];const prof=await r.json();window.PROF_SRC=prof.sources||{};const now=prof.acs["2024"].bh,then=prof.acs["2010"].bh,bk=prof.acs["2024"].brooklyn,ny=prof.acs["2024"].nyc;
+  DSRC=[];const prof=await r.json();window.PROF_SRC=prof.sources||{};YRS=Object.keys(prof.acs_periods);LATEST=prof.latest||YRS[YRS.length-1];for(const k in M)M[k].l=M[k].l.replace("today's $",(prof.dollars_year||LATEST)+" $");const now=prof.acs[LATEST].bh,then=prof.acs["2010"].bh,bk=prof.acs[LATEST].brooklyn,ny=prof.acs[LATEST].nyc;
   const box=el("div");box.style.cssText="display:flex;flex-direction:column;gap:40px";box.appendChild(await sharedBanner("data"));
-  const h=el("header");h.appendChild(el("span","eyebrow","Census Bureau ACS 2006–10 to 2020–24 · NYS DOT"));h.appendChild(el("h1",null,"Brooklyn Heights by the numbers"));
+  const h=el("header");h.appendChild(el("span","eyebrow","Census Bureau ACS 2006–10 to "+prof.acs_periods[LATEST]));h.appendChild(el("h1",null,"Brooklyn Heights by the numbers"));
   h.appendChild(el("p",null,"Who lives here, what they earn, how they live and get around, and how that has changed since 2010. Brooklyn Heights here is the city's official neighborhood area (NTA BK0201): six census tracts, about 26,000 people, from the Brooklyn Bridge to Atlantic Avenue west of Cadman Plaza and Court Street."));
   box.appendChild(h);
   const chg=(k)=>{const a=then[k],b=now[k];return a?((b-a)/a*100):null};
@@ -453,7 +453,7 @@ async function dataPage(){
     ["Residents 65 and older",fv(now.pct_65_plus,"pct"),"Was "+fv(then.pct_65_plus,"pct")+" in 2006–10","pct_65_plus"]];
   const ts=el("div","tiles");tiles.forEach(([k,val,c,key])=>{const t=el("div","tile");t.appendChild(el("span","k",k));t.appendChild(html("span","v",esc(val)+dsup(TABLE[key])));t.appendChild(el("span","c",c));ts.appendChild(t)});box.appendChild(ts);
   const groups=[["People","Who lives here",["population","pct_65_plus","pct_under_18","pct_households_with_children","persons_per_household","pct_foreign_born","pct_white_nh","pct_asian_nh","pct_hispanic"]],
-    ["Money and housing","Income, rent and ownership",["median_household_income_2024usd","mean_gross_rent_2024usd","pct_rent_burdened","pct_owner_occupied","pct_owner_homes_1m_plus","pct_poverty","housing_units","households","pct_bachelors_plus"]],
+    ["Money and housing","Income, rent and ownership",["median_household_income_real","mean_gross_rent_real","pct_rent_burdened","pct_owner_occupied","pct_owner_homes_1m_plus","pct_poverty","housing_units","households","pct_bachelors_plus"]],
     ["Getting around","Cars and commuting",["pct_households_no_car","vehicles_available","vehicles_per_household","pct_commute_transit","pct_work_from_home","pct_commute_walk","pct_commute_drive","pct_commute_bike","pct_renter_households_no_car"]]];
   groups.forEach(([eb,title,keys])=>{const s=section("g-"+eb,eb,title);const g=el("div","multiples");keys.forEach(k=>g.appendChild(mini(prof,k)));s.appendChild(g);box.appendChild(s)});
   // what it suggests
@@ -462,18 +462,18 @@ async function dataPage(){
     "<strong>A car-light neighborhood.</strong> "+fv(now.pct_households_no_car,"pct")+"[[m:pct_households_no_car]]"+" of households have no car (Brooklyn: "+fv(bk.pct_households_no_car,"pct")+"[[m:pct_households_no_car]]"+"), and only "+fv(now.pct_commute_drive,"pct")+"[[m:pct_commute_drive]]"+" of workers drive to work. Residents keep about "+fv(now.vehicles_available,"int")+"[[m:vehicles_available]]"+" vehicles in total, though, up from "+fv(then.vehicles_available,"int")+"[[m:vehicles_available]]"+".",
     "<strong>More people at home.</strong> Working from home went from "+fv(prof.acs["2019"].bh.pct_work_from_home,"pct")+"[[m:pct_work_from_home]]"+" to "+fv(now.pct_work_from_home,"pct")+"[[m:pct_work_from_home]]"+" after 2020, while transit commuting fell from "+fv(prof.acs["2019"].bh.pct_commute_transit,"pct")+"[[m:pct_commute_transit]]"+" to "+fv(now.pct_commute_transit,"pct")+"[[m:pct_commute_transit]]"+". Daytime noise, dust and construction hours matter to more residents than before.",
     "<strong>Growth is arriving.</strong> Housing units rose from about "+fv(then.housing_units,"int")+"[[m:housing_units]]"+" to "+fv(now.housing_units,"int")+"[[m:housing_units]]"+". The tracked projects would add roughly 930 more homes (661 at Columbia Heights, 136 at One Montague Place, about 61 at the Bossert, 75 at 120 Court, per each project's sources), about 7% more, plus families with children: schools, parks and the Promenade will feel it.",
-    "<strong>High incomes, with a renter majority.</strong> Median household income is about "+fv(now.median_household_income,"usd")+"[[m:median_household_income]]"+", more than twice Brooklyn's, and poverty fell to "+fv(now.pct_poverty,"pct")+"[[m:pct_poverty]]"+". Still, "+fv(now.pct_renter_occupied,"pct")+"[[m:pct_renter_occupied]]"+" of homes are rented and "+fv(now.pct_rent_burdened,"pct")+"[[m:pct_rent_burdened]]"+" of renters pay 30% or more of income on rent. Average rent rose from "+fv(then.mean_gross_rent_2024usd,"usd")+"[[m:mean_gross_rent_2024usd]]"+" to "+fv(now.mean_gross_rent_2024usd,"usd")+"[[m:mean_gross_rent_2024usd]]"+" in today's dollars.",
+    "<strong>High incomes, with a renter majority.</strong> Median household income is about "+fv(now.median_household_income,"usd")+"[[m:median_household_income]]"+", more than twice Brooklyn's, and poverty fell to "+fv(now.pct_poverty,"pct")+"[[m:pct_poverty]]"+". Still, "+fv(now.pct_renter_occupied,"pct")+"[[m:pct_renter_occupied]]"+" of homes are rented and "+fv(now.pct_rent_burdened,"pct")+"[[m:pct_rent_burdened]]"+" of renters pay 30% or more of income on rent. Average rent rose from "+fv(then.mean_gross_rent_real,"usd")+"[[m:mean_gross_rent_real]]"+" to "+fv(now.mean_gross_rent_real,"usd")+"[[m:mean_gross_rent_real]]"+" in today's dollars.",
     "<strong>Whiter than the borough, though less than before.</strong> White non-Hispanic residents are "+fv(now.pct_white_nh,"pct")+"[[m:pct_white_nh]]"+" of the population, down from "+fv(then.pct_white_nh,"pct")+"[[m:pct_white_nh]]"+" (Brooklyn: "+fv(bk.pct_white_nh,"pct")+"[[m:pct_white_nh]]"+"). The Black share is "+fv(now.pct_black_nh,"pct")+"[[m:pct_black_nh]]"+", against "+fv(bk.pct_black_nh,"pct")+"[[m:pct_black_nh]]"+" boroughwide. The affordable units at Columbia Heights (about 165) would be the area's largest new affordable housing in years."
   ].forEach(t=>nl.appendChild(html("p",null,dcite(t))));ns.appendChild(nl);box.appendChild(ns);
   // table
   const ts2=section("table","All the numbers","Table");const tb=el("div","tablebox");const t=el("table");
-  t.innerHTML="<thead><tr><th>Measure</th><th>Table</th><th>2006–10</th><th>2011–15</th><th>2015–19</th><th>2020–24</th><th>Brooklyn 2020–24</th><th>NYC 2020–24</th></tr></thead>";
-  const body=el("tbody");Object.keys(M).forEach(k=>{const tr=el("tr");tr.appendChild(el("td",null,M[k].l));const tc=el("td","num mono");tc.appendChild(link(TABLE[k],tableUrl(TABLE[k],"2024")));tr.appendChild(tc);YRS.forEach(y=>tr.appendChild(el("td","num",fv(prof.acs[y].bh[k],M[k].f))));tr.appendChild(el("td","num",fv(bk[k],M[k].f)));tr.appendChild(el("td","num",fv(ny[k],M[k].f)));body.appendChild(tr)});
+  t.innerHTML="<thead><tr><th>Measure</th><th>Table</th>"+YRS.map(y=>"<th>"+prof.acs_periods[y]+"</th>").join("")+"<th>Brooklyn "+prof.acs_periods[LATEST]+"</th><th>NYC "+prof.acs_periods[LATEST]+"</th></tr></thead>";
+  const body=el("tbody");Object.keys(M).forEach(k=>{const tr=el("tr");tr.appendChild(el("td",null,M[k].l));const tc=el("td","num mono");tc.appendChild(link(TABLE[k],tableUrl(TABLE[k],LATEST)));tr.appendChild(tc);YRS.forEach(y=>tr.appendChild(el("td","num",fv(prof.acs[y].bh[k],M[k].f))));tr.appendChild(el("td","num",fv(bk[k],M[k].f)));tr.appendChild(el("td","num",fv(ny[k],M[k].f)));body.appendChild(tr)});
   t.appendChild(body);tb.appendChild(t);ts2.appendChild(tb);box.appendChild(ts2);
   const d=prof.decennial_population;
   const f=el("footer");[
    "Census counts (every household, not a survey): "+fv(d["2010"].bh,"int")+" people in 2010[[dec2010]] and "+fv(d["2020"].bh,"int")+" in 2020[[dec2020]] (+"+((d["2020"].bh/d["2010"].bh-1)*100).toFixed(1)+"%).",
-   "ACS figures are 5-year survey estimates with margins of error that can be several points for an area this size; treat small changes as noise. Medians for the six tracts are estimated from income brackets. Dollar amounts in charts are adjusted to 2024 dollars with the CPI-U. Rent is the average gross rent (rent plus utilities) for units paying cash rent.",
+   "ACS figures are 5-year survey estimates with margins of error that can be several points for an area this size; treat small changes as noise. Medians for the six tracts are estimated from income brackets. Dollar amounts in charts are adjusted to "+(prof.dollars_year||LATEST)+" dollars with the CPI-U. Rent is the average gross rent (rent plus utilities) for units paying cash rent."+((prof.cpi_notes||[]).length?" "+prof.cpi_notes.join(" "):""),
    "Area: "+prof.area+". Built "+fmtD(prof.built)+" by scripts/build_profile.py from data.census.gov and data.ny.gov."
   ].forEach(x=>f.appendChild(html("p",null,dcite(esc(x)))));
   const ss=section("sources","Sources","Where every number comes from","Each small number links to its source. The Census responses behind every chart are kept (saved data), so the figures can be rebuilt even if the Census site changes.");
