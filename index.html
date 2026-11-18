@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="robots" content="noindex,nofollow">
+<script>window.NEIGHBORHOOD_STATIC=true</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Neighborhood Projects</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;font-size:14px}
+img{max-width:100%}
+[hidden]{display:none!important}
+
+/* Layout: a single civic-record column; status first, then the ULURP track, calendar, requests, library. Accent borrows the violet NYC zoning maps use for manufacturing districts (today's M2-1). */
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --fg:#1b1f2a; --muted:#5b6274; --line:#dde1e8;
+  --accent:#5b3fa6; --accent-soft:#ece7f7; --res:#b07a00; --res-soft:#fbf1d8;
+  --ok:#1f7a4d; --ok-soft:#e1f2e8; --warn:#9a5b00; --warn-soft:#fdf0dc; --est:#55607a; --est-soft:#eceff4;
+  --display:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12141b; --surface:#1a1d27; --fg:#e7e9ef; --muted:#9aa1b3; --line:#2c3040;
+  --accent:#b39cf0; --accent-soft:#2a2442; --res:#e2b54a; --res-soft:#352b14;
+  --ok:#6fcf9c; --ok-soft:#173327; --warn:#f0b35a; --warn-soft:#3a2a12; --est:#a9b2c8; --est-soft:#252a37; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12141b; --surface:#1a1d27; --fg:#e7e9ef; --muted:#9aa1b3; --line:#2c3040;
+  --accent:#b39cf0; --accent-soft:#2a2442; --res:#e2b54a; --res-soft:#352b14;
+  --ok:#6fcf9c; --ok-soft:#173327; --warn:#f0b35a; --warn-soft:#3a2a12; --est:#a9b2c8; --est-soft:#252a37; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55}
+a{color:var(--accent)} a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:800;letter-spacing:-.01em}
+h2{font-size:1.35rem;font-weight:700}
+h3{font-size:1rem;font-weight:700}
+p{margin:0;max-width:68ch}
+.mono{font-family:var(--mono);font-size:.86em}
+.eyebrow{font-size:.75rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+section{display:flex;flex-direction:column;gap:16px}
+.sechead{display:flex;flex-direction:column;gap:6px;border-top:2px solid var(--fg);padding-top:12px}
+.sechead p{color:var(--muted)}
+
+/* header */
+header{display:flex;flex-direction:column;gap:14px}
+.ids{display:flex;flex-wrap:wrap;gap:8px}
+.id{font-family:var(--mono);font-size:.8rem;border:1px solid var(--line);background:var(--surface);padding:3px 8px;border-radius:4px;color:var(--muted)}
+.id b{color:var(--fg);font-weight:500}
+.addrnote{border-left:3px solid var(--res);background:var(--res-soft);padding:10px 14px;border-radius:0 6px 6px 0;max-width:80ch}
+
+/* status */
+.status{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:760px){.status{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px 20px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;padding:3px 10px;border-radius:999px;width:fit-content}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.p-warn{background:var(--warn-soft);color:var(--warn)} .p-ok{background:var(--ok-soft);color:var(--ok)} .p-est{background:var(--est-soft);color:var(--est)} .p-acc{background:var(--accent-soft);color:var(--accent)}
+.facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 16px;margin:0}
+.facts dt{color:var(--muted);font-size:.85rem}
+.facts dd{margin:0;font-variant-numeric:tabular-nums}
+ul.tight{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+
+/* track */
+.track{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.track{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:480px){.track{grid-template-columns:minmax(0,1fr)}}
+.phase{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.phase.now{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.phase h3{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.phase h3 small{font-family:var(--mono);font-weight:400;font-size:.75rem;color:var(--muted)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.steps li{display:grid;grid-template-columns:16px minmax(0,1fr);gap:8px;font-size:.88rem;line-height:1.4}
+.dot{width:12px;height:12px;border-radius:50%;margin-top:3px;border:2px solid var(--line);background:var(--surface)}
+.done .dot{background:var(--ok);border-color:var(--ok)}
+.cur .dot{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.steps .when{display:block;color:var(--muted);font-size:.78rem;font-variant-numeric:tabular-nums}
+.cur span:first-child{font-weight:600}
+
+/* calendar */
+.legend{display:flex;flex-wrap:wrap;gap:8px}
+.months{display:flex;flex-direction:column;gap:18px}
+.month{display:grid;grid-template-columns:140px minmax(0,1fr);gap:16px}
+@media (max-width:600px){.month{grid-template-columns:minmax(0,1fr);gap:6px}}
+.month>h3{font-size:.95rem;color:var(--muted);padding-top:12px}
+.events{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.ev{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:start}
+@media (max-width:600px){.ev{grid-template-columns:76px minmax(0,1fr)}.ev .pill{grid-column:2}}
+.ev .date{font-family:var(--mono);font-size:.82rem;font-variant-numeric:tabular-nums}
+.ev .t{font-weight:600}
+.ev .d{color:var(--muted);font-size:.88rem}
+.ev.past{opacity:.72}
+.today{font-family:var(--mono);font-size:.78rem;color:var(--accent);padding:6px 0;border-bottom:2px dashed var(--accent)}
+
+/* requests table + library */
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.cmp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:700px){.cmp{grid-template-columns:minmax(0,1fr)}}
+.bar{display:flex;flex-direction:column;gap:4px;font-size:.85rem}
+.bar .track2{height:10px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar .fill{height:100%;background:var(--accent)}
+.bar .fill.ex{background:var(--muted)}
+
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{font:inherit;font-size:.82rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:5px 12px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+#q{font:inherit;font-size:.9rem;padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg);min-width:0;flex:1 1 200px;max-width:320px}
+.lib{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.doc{display:grid;grid-template-columns:96px minmax(0,1fr) 150px;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
+@media (max-width:640px){.doc{grid-template-columns:minmax(0,1fr)}}
+.doc .date{font-family:var(--mono);font-size:.82rem;color:var(--muted)}
+.doc a{font-weight:600;text-decoration:none} .doc a:hover{text-decoration:underline}
+.doc .note{color:var(--muted);font-size:.87rem}
+.doc .cat{font-size:.75rem;color:var(--muted);text-align:right}
+@media (max-width:640px){.doc .cat{text-align:left}}
+.empty{color:var(--muted);padding:16px 0}
+.watch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:700px){.watch{grid-template-columns:minmax(0,1fr)}}
+.watch .card h3{font-size:.95rem}
+footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* app shell: project tabs above the project view */
+.topbar{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:14px}
+.brand{font-family:var(--display);font-weight:800;font-size:1rem;letter-spacing:.01em}
+.brand span{color:var(--muted);font-weight:500}
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+.tab{font:inherit;font-size:.85rem;text-decoration:none;color:var(--fg);border:1px solid var(--line);background:var(--surface);padding:6px 12px;border-radius:6px;display:flex;flex-direction:column;gap:1px;line-height:1.3}
+.tab small{color:var(--muted);font-size:.72rem}
+.tab[aria-current="page"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.feed{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.feed .item{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.feed .date{font-family:var(--mono);font-size:.82rem;color:var(--muted)}
+.feed .t{font-weight:600}
+.feed .t a{text-decoration:none}
+.feed .d{color:var(--muted);font-size:.87rem}
+.feed .item.baseline .t{font-weight:500;color:var(--muted)}
+.syncline{color:var(--muted);font-size:.82rem}
+.syncline .err{color:var(--warn)}
+.loading{color:var(--muted);padding:40px 0}
+/*ov*/
+.banner{margin:0 0 -16px;display:flex;flex-direction:column;gap:6px}
+.banner img{width:100%;height:clamp(150px,24vw,280px);object-fit:cover;border-radius:10px;display:block;background:var(--line)}
+.banner figcaption{font-size:.74rem;color:var(--muted)}
+.banner figcaption a{color:var(--muted)}
+/* data page */
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.tile .k{font-size:.78rem;color:var(--muted)}
+.tile .v{font-family:var(--display);font-size:1.7rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.tile .c{font-size:.8rem;color:var(--muted)}
+.multiples{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.multiples{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.multiples{grid-template-columns:minmax(0,1fr)}}
+.mini{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.mini h3{font-size:.88rem;font-weight:600}
+.mini .ref{font-size:.76rem;color:var(--muted)}
+.mini svg{width:100%;height:auto;display:block;overflow:visible}
+.mini svg text{fill:var(--muted);font:11px var(--body)}
+.mini svg text.val{fill:var(--fg);font-weight:600}
+.mini svg .grid{stroke:var(--line);stroke-width:1}
+.mini svg .ln{stroke:var(--accent);stroke-width:2;fill:none}
+.mini svg .area{fill:var(--accent-soft)}
+.mini svg circle{fill:var(--accent);stroke:var(--surface);stroke-width:2}
+.mini svg circle.hit{fill:transparent;stroke:none;cursor:default}
+.notes{display:flex;flex-direction:column;gap:8px;max-width:75ch}
+sup.cite{font-size:.68em;line-height:0;margin-left:1px}
+sup.cite a{text-decoration:none;font-family:var(--mono);padding:0 2px;border-radius:3px;background:var(--accent-soft)}
+.pcard .open{font-size:.86rem;font-weight:600;text-decoration:none;margin-top:auto}
+.srclist{margin:0;padding-left:28px;display:flex;flex-direction:column;gap:10px;font-size:.88rem;max-width:90ch}
+.srclist li::marker{font-family:var(--mono);color:var(--muted)}
+.srclist .m{color:var(--muted)}
+.srclist .sv{font-size:.8rem;color:var(--muted)}
+.mini .src{font-size:.74rem;color:var(--muted)}
+
+/* overview */
+.ov-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.ov-grid{grid-template-columns:minmax(0,1fr)}}
+#map{height:440px;border-radius:8px;border:1px solid var(--line);background:var(--surface);z-index:0}
+@media (max-width:600px){#map{height:340px}}
+.pin{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font:700 13px/1 var(--body);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)}
+.pin.t-warn{background:#b8740a}.pin.t-ok{background:#1f7a4d}.pin.t-est{background:#55607a}.pin.t-acc{background:#5b3fa6}
+.leaflet-popup-content{font-family:var(--body);font-size:13px;line-height:1.45}
+.leaflet-popup-content b{display:block;font-size:14px}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:700px){.cards{grid-template-columns:minmax(0,1fr)}}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-width:0;text-decoration:none;color:var(--fg)}
+
+.pcard .num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:.78rem;margin-right:8px}
+.pcard h3{display:flex;align-items:center;font-size:1.05rem}
+.pcard .addr{color:var(--muted);font-size:.85rem}
+.pcard .kv{display:grid;grid-template-columns:72px minmax(0,1fr);gap:4px 10px;font-size:.86rem}
+.pcard .kv dt{color:var(--muted)}.pcard .kv dd{margin:0}
+.upcoming{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.upcoming .ev{grid-template-columns:104px minmax(0,1fr)}
+.tiles-dark{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}
+.upcoming .proj{font-size:.75rem;color:var(--accent);font-weight:600;letter-spacing:.02em}
+
+details.more summary{cursor:pointer;color:var(--accent);font-size:.88rem;padding:10px 0}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="topbar" aria-label="Projects">
+    <div class="brand">Neighborhood <span>· Brooklyn Heights projects</span></div>
+    <div class="tabs" id="tabs"></div>
+  </nav>
+  <div id="view"><p class="loading">Loading projects…</p></div>
+</div>
+
+<script>
+const MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const TODAY=new Date().toLocaleDateString("en-CA",{timeZone:"America/New_York"});
+const TONE={warn:"p-warn",ok:"p-ok",est:"p-est",acc:"p-acc"};
+// The public read-only copy (scripts/export_site.py) sets NEIGHBORHOOD_STATIC and reads exported JSON files.
+const STATIC=!!window.NEIGHBORHOOD_STATIC;
+function api(p){if(!STATIC)return p;
+  if(p==="api/projects")return "data/projects.json";
+  if(p.startsWith("api/projects/"))return "data/projects/"+p.slice(13)+".json";
+  if(p.startsWith("api/activity"))return "data/activity.json";
+  if(p==="api/profile")return "data/profile.json";
+  if(p.startsWith("api/profile/raw/"))return "data/raw/"+p.slice(16)+".json";
+  return p}
+let filt="all", current=null, PROJECTS=[], SRC={}, SAVED={}, BANNERS=null;
+function banner(b){
+  if(!b)return el("div");const f=el("figure","banner");const img=el("img");img.src="img/"+b.file;img.alt=b.alt||"";img.style.objectPosition=b.position||"50% 50%";img.loading="eager";f.appendChild(img);
+  const cap=el("figcaption");cap.appendChild(document.createTextNode((b.caption||"")+" · Photo: "));cap.appendChild(link(b.creator,b.source_url));cap.appendChild(document.createTextNode(", "));cap.appendChild(link(b.license,b.license_url));f.appendChild(cap);return f}
+async function sharedBanner(k){if(!BANNERS){try{BANNERS=await (await fetch("img/banners.json")).json()}catch(e){BANNERS={}}}return banner(BANNERS[k])}
+function esc(t){return String(t==null?"":t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+// [[id]] or [[id1,id2]] in curated text -> numbered superscript links to the source (numbers follow the sources list)
+function cite(h,src){src=src||SRC;const keys=Object.keys(src);return String(h==null?"":h).replace(/\s*\[\[([^\]]+)\]\]/g,(m,ids)=>ids.split(",").map(id=>{id=id.trim();const s=src[id];if(!s)return"";return '<sup class="cite"><a href="'+esc(s.url)+'" target="_blank" rel="noopener" title="'+esc(s.title)+'">'+(keys.indexOf(id)+1)+'</a></sup>'}).join(""))}
+function ct(tag,cls,text,src){return html(tag,cls,cite(esc(text),src))}
+function strip(t){return String(t==null?"":t).replace(/\s*\[\[[^\]]*\]\]/g,"")}
+
+function el(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+function html(tag,cls,h){const e=el(tag,cls);e.innerHTML=h;return e}  // curated text from projects/*.json only
+function fmtD(s){if(!s)return"—";const p=s.split("-");if(p.length===1)return p[0];if(p.length===2)return MN[+p[1]-1].slice(0,3)+" "+p[0];return MN[+p[1]-1].slice(0,3)+" "+(+p[2])+", "+p[0]}
+function section(id,eyebrow,title,intro){const s=el("section");s.id=id;const h=el("div","sechead");h.appendChild(el("span","eyebrow",eyebrow));h.appendChild(el("h2",null,title));if(intro)h.appendChild(ct("p",null,intro));s.appendChild(h);return s}
+function link(text,url){const a=el("a",null,text);a.href=url;a.target="_blank";a.rel="noopener";return a}
+
+async function boot(){
+  const list=await (await fetch(api("api/projects"))).json();
+  const tabs=document.getElementById("tabs");tabs.textContent="";
+  PROJECTS=list;
+  const ov=el("a","tab");ov.href="#overview";ov.dataset.slug="overview";ov.appendChild(el("span",null,"Overview"));ov.appendChild(el("small",null,list.length+" projects"));tabs.appendChild(ov);
+  list.forEach(p=>{const a=el("a","tab");a.href="#"+p.slug;a.dataset.slug=p.slug;a.appendChild(el("span",null,p.short_name));a.appendChild(el("small",null,strip(p.status?p.status.pill:p.kind)));tabs.appendChild(a)});
+  const dt=el("a","tab");dt.href="#data";dt.dataset.slug="data";dt.appendChild(el("span",null,"Neighborhood data"));dt.appendChild(el("small",null,"Census · 2010–2024"));tabs.appendChild(dt);
+  const want=location.hash.slice(1);
+  show(list.some(p=>p.slug===want)||want==="data"?want:"overview");
+}
+window.addEventListener("hashchange",()=>{const s=location.hash.slice(1);if(s&&s!==current)show(s)});
+
+async function show(slug){
+  current=slug;filt="all";
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-current",t.dataset.slug===slug?"page":"false"));
+  if(slug==="overview")return overview();
+  if(slug==="data")return dataPage();
+  const r=await fetch(api("api/projects/"+encodeURIComponent(slug)));
+  const v=document.getElementById("view");v.textContent="";
+  if(!r.ok){v.appendChild(el("p","loading","That project isn't here. Pick one above."));return}
+  const p=await r.json();SRC=p.sources||{};SAVED=p.saved||{};
+  document.title=p.short_name+" · Neighborhood Projects";
+  const box=el("div");box.style.cssText="display:flex;flex-direction:column;gap:40px";
+  box.append(banner(p.banner),header(p),status(p),track(p),...charts(p),...tables(p),updates(p),calendar(p),requests(p),library(p),watchlist(p),sourcesSec(p),footer(p));
+  v.appendChild(box);
+  lib(p);
+}
+
+function header(p){
+  const h=el("header");
+  h.appendChild(el("span","eyebrow",p.eyebrow+" · reviewed "+fmtD(p.last_reviewed)));
+  h.appendChild(el("h1",null,p.name));
+  if(p.intro)h.appendChild(ct("p",null,p.intro));
+  const ids=el("div","ids");(p.ids||[]).forEach(([k,val])=>{const s=el("span","id",k+" ");s.appendChild(ct("b",null,val));ids.appendChild(s)});h.appendChild(ids);
+  return h;
+}
+function status(p){
+  const s=section("status","Where we stand",p.status.headline);
+  const g=el("div","status");const c=el("div","card");
+  c.appendChild(ct("span","pill "+(TONE[p.status.tone]||"p-est"),p.status.pill));
+  p.status.paragraphs.forEach(t=>c.appendChild(html("p",null,cite(t))));
+  const f=el("div","card");f.appendChild(el("h3",null,p.facts_title||"In brief"));
+  const dl=el("dl","facts");(p.facts||[]).forEach(([k,val])=>{dl.appendChild(el("dt",null,k));dl.appendChild(ct("dd",null,val))});f.appendChild(dl);
+  g.append(c,f);s.appendChild(g);return s;
+}
+function track(p){
+  const s=section("track","Process","Stage track",p.track.intro);
+  const t=el("div","track");
+  p.track.phases.forEach(ph=>{const d=el("div","phase"+(ph.now?" now":""));const h=el("h3",null,ph.title+" ");h.appendChild(ct("small",null,ph.clock));d.appendChild(h);
+    const ul=el("ul","steps");ph.steps.forEach(st=>{const li=el("li",st.state==="done"?"done":st.state==="cur"?"cur":"");li.appendChild(el("span","dot"));const sp=ct("span",null,st.t);sp.appendChild(ct("span","when",st.when));li.appendChild(sp);ul.appendChild(li)});
+    d.appendChild(ul);t.appendChild(d)});
+  s.appendChild(t);return s;
+}
+function updates(p){
+  const s=section("updates","Watching the city's records","Updates",
+    "Checked every few hours. New filings, documents, milestones and votes show up here.");
+  const f=el("div","feed");const items=p.activity||[];
+  if(!items.length)f.appendChild(el("p","empty","No checks yet. The first one runs a minute after the app starts."));
+  items.slice(0,12).forEach(a=>{const r=el("div","item "+a.kind);r.appendChild(el("span","date",fmtD(a.at.slice(0,10))));const b=el("div");const t=el("div","t");if(a.url)t.appendChild(link(a.title,a.url));else t.textContent=a.title;b.appendChild(t);if(a.detail)b.appendChild(el("div","d",a.detail));r.appendChild(b);f.appendChild(r)});
+  s.appendChild(f);
+  const line=el("p","syncline");
+  (p.sync||[]).forEach((x,i)=>{const src=(p.watch_sources||[]).find(w=>w.type+":"+w.id===x.source);const span=el("span",x.error?"err":null,(i?" · ":"")+(src?src.label:x.source)+": "+(x.error?"last check failed":"checked "+new Date(x.synced_at).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})));line.appendChild(span)});
+  s.appendChild(line);return s;
+}
+function calendar(p){
+  const s=section("calendar","Calendar","Deadlines and hearings",p.calendar.intro);
+  const lg=el("div","legend");[["p-ok","Confirmed or held"],["p-acc","Target date"],["p-est","Estimate"]].forEach(([c,t])=>lg.appendChild(el("span","pill "+c,t)));s.appendChild(lg);
+  const root=el("div","months");const groups=new Map();
+  p.calendar.events.forEach(e=>{const key=e.d.length===4?e.d:e.d.slice(0,7);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(e)});
+  const label={ok:"Held",acc:"Target",est:"Estimate"};let placed=false;
+  for(const [key,list] of groups){
+    const m=el("div","month");const k=key.split("-");m.appendChild(el("h3",null,k.length===2?MN[+k[1]-1]+" "+k[0]:k[0]));
+    const evs=el("div","events");
+    list.forEach(e=>{const cmp=e.d.length===4?e.d+"-12-31":(e.d.length===7?e.d+"-31":e.d);
+      if(!placed&&cmp>TODAY&&key===TODAY.slice(0,7)){evs.appendChild(el("div","today","Today · "+fmtD(TODAY)));placed=true}
+      const r=el("div","ev"+(cmp<TODAY?" past":""));r.appendChild(el("span","date",e.d.length===10?fmtD(e.d).replace(/, \d+$/,""):(e.d.length===7?"Month":"Year")));
+      const b=el("div");b.appendChild(ct("div","t",e.t));if(e.n)b.appendChild(ct("div","d",e.n));r.appendChild(b);r.appendChild(el("span","pill "+TONE[e.k],e.k==="ok"&&cmp>=TODAY?"Scheduled":label[e.k]));evs.appendChild(r)});
+    m.appendChild(evs);root.appendChild(m);
+  }
+  s.appendChild(root);return s;
+}
+function requests(p){
+  const s=section("requests","What's being requested",p.requests.title);
+  const box=el("div","tablebox");const t=el("table");t.innerHTML="<thead><tr><th>Action</th><th>Number</th><th>What it does</th><th>Review path</th></tr></thead>";
+  const tb=el("tbody");p.requests.rows.forEach(r=>{const tr=el("tr");r.forEach((c,i)=>tr.appendChild(ct("td",i===1?"num mono":null,c)));tb.appendChild(tr)});t.appendChild(tb);box.appendChild(t);s.appendChild(box);
+  if(p.requests.bars&&p.requests.bars.length){const g=el("div","cmp");p.requests.bars.forEach(b=>{const c=el("div","card");c.appendChild(el("h3",null,b.title));
+    b.bars.forEach(x=>{const d=el("div","bar");d.appendChild(ct("span",null,x.label));const tr=el("div","track2");const f=el("div","fill"+(x.muted?" ex":""));f.style.width=x.pct+"%";tr.appendChild(f);d.appendChild(tr);c.appendChild(d)});
+    if(b.note){const n=ct("p","mono",b.note);n.style.color="var(--muted)";c.appendChild(n)}g.appendChild(c)});s.appendChild(g)}
+  return s;
+}
+const CATS={Filing:"Application filing",Environmental:"Environmental review",Notice:"Notice",Press:"Press",Reference:"Reference",Record:"City record"};
+function library(p){
+  const s=section("library","Library","Filings and background","Curated filings and background. City records lists everything the watchers have found in the Buildings and property records.");
+  const c=el("div","controls");
+  [["all","All"],["Filing","Filings"],["Environmental","Environmental"],["Notice","Notices"],["Press","Press"],["Reference","Reference"],["Record","City records"]].forEach(([f,t])=>{const b=el("button","chip",t);b.dataset.f=f;b.setAttribute("aria-pressed",String(f==="all"));b.addEventListener("click",()=>{filt=f;c.querySelectorAll(".chip").forEach(o=>o.setAttribute("aria-pressed",String(o===b)));lib(p)});c.appendChild(b)});
+  const q=el("input");q.id="q";q.type="search";q.placeholder="Search the library";q.setAttribute("aria-label","Search the library");q.addEventListener("input",()=>lib(p));c.appendChild(q);
+  s.appendChild(c);const l=el("div","lib");l.id="lib";s.appendChild(l);return s;
+}
+function allDocs(p){
+  const seen=new Set((p.docs||[]).map(d=>d.u));
+  const rec=(p.records||[]).filter(r=>!seen.has(r.url)).map(r=>({d:r.date||"",c:"Record",t:r.label,u:r.url,n:r.kind==="document"?"From City Planning's record ("+r.value+")":(r.value||"")}));
+  return [...(p.docs||[]),...rec].sort((a,b)=>(b.d||"").localeCompare(a.d||""));
+}
+function lib(p){
+  const q=(document.getElementById("q")||{value:""}).value.trim().toLowerCase();const root=document.getElementById("lib");if(!root)return;root.textContent="";
+  const rows=allDocs(p).filter(x=>(filt==="all"?x.c!=="Record":x.c===filt)&&(!q||(x.t+" "+x.n).toLowerCase().includes(q)));
+  if(!rows.length){root.appendChild(el("div","empty","Nothing matches. Try a different word or clear the filter."));return}
+  const draw=(x,into)=>{const r=el("div","doc");r.appendChild(el("span","date",fmtD(x.d)));const b=el("div");b.appendChild(link(x.t,x.u));if(x.n)b.appendChild(ct("div","note",x.n));r.appendChild(b);r.appendChild(el("span","cat",CATS[x.c]||x.c));into.appendChild(r)};
+  rows.slice(0,40).forEach(x=>draw(x,root));
+  if(rows.length>40){const d=el("details","more");d.appendChild(el("summary",null,"Show "+(rows.length-40)+" more"));rows.slice(40).forEach(x=>draw(x,d));root.appendChild(d)}
+}
+function watchlist(p){
+  const s=section("watch","Open questions","What to watch");const g=el("div","watch");
+  (p.watch||[]).forEach(w=>{const c=el("div","card");c.appendChild(el("h3",null,w.h));c.appendChild(html("p",null,cite(w.p)));g.appendChild(c)});s.appendChild(g);return s;
+}
+function footer(p){const f=el("footer");(p.footer||[]).forEach(t=>f.appendChild(html("p",null,cite(t))));return f}
+function sourcesSec(p){
+  const s=section("sources","Sources","Where every number comes from","Each small number on this page links to its source. "+(STATIC?"Copies of public documents and data are kept with this page, so they can still be checked if the original changes or disappears.":"A copy of each source is saved on the mini, so it can still be checked if the original changes or disappears."));
+  const ol=el("ol","srclist");
+  Object.entries(p.sources||{}).forEach(([id,x])=>{const li=el("li");li.id="src-"+id;
+    const a=link(x.title,x.url);li.appendChild(a);
+    const meta=[x.publisher,x.date?fmtD(x.date):null].filter(Boolean).join(", ");if(meta)li.appendChild(el("span","m"," — "+meta));
+    const sv=(p.saved||{})[id];const line=el("div","sv");
+    if(sv&&sv.status==="saved"){line.appendChild(link("Saved copy","archive/"+sv.file));line.appendChild(document.createTextNode(" · saved "+fmtD(sv.saved_at)+(String(sv.via||"").startsWith("wayback")?" from the Internet Archive":"")))}
+    else if(sv&&sv.status==="private")line.textContent="A saved copy is kept privately; this source isn't republished here.";
+    else line.textContent=sv&&sv.status==="failed"?"Couldn't save a copy (the site blocks downloads and the Internet Archive has none). Retried weekly.":"Copy not saved yet; it's saved at the next check.";
+    li.appendChild(line);ol.appendChild(li)});
+  s.appendChild(ol);return s;
+}
+
+const YRS=["2010","2015","2019","2024"];
+const BH_GEOS=["000100","000301","000501","000502","000700","000900"].map(t=>"1400000US36047"+t).join(",");
+const TABLE={population:"B01003",pct_under_18:"B01001",pct_65_plus:"B01001",pct_households_with_children:"B11005",persons_per_household:"B11001",
+ pct_foreign_born:"B05002",pct_white_nh:"B03002",pct_black_nh:"B03002",pct_asian_nh:"B03002",pct_hispanic:"B03002",pct_other_multi:"B03002",
+ median_household_income:"B19001",median_household_income_2024usd:"B19001",mean_household_income_2024usd:"B19025",pct_poverty:"B17001",pct_bachelors_plus:"B15003",
+ households:"B11001",housing_units:"B25001",pct_vacant:"B25002",pct_owner_occupied:"B25003",pct_renter_occupied:"B25003",pct_owner_homes_1m_plus:"B25075",
+ mean_gross_rent_2024usd:"B25065",pct_rent_burdened:"B25070",pct_households_no_car:"B25044",pct_renter_households_no_car:"B25044",pct_owner_households_no_car:"B25044",
+ vehicles_available:"B25044",vehicles_per_household:"B25044",pct_commute_transit:"B08301",pct_work_from_home:"B08301",pct_commute_walk:"B08301",pct_commute_drive:"B08301",pct_commute_bike:"B08301"};
+const TNAME={B01003:"Total population",B01001:"Sex by age",B11005:"Households by presence of people under 18",B11001:"Household type",B05002:"Place of birth by nativity",
+ B03002:"Hispanic or Latino origin by race",B19001:"Household income in the past 12 months",B19025:"Aggregate household income",B17001:"Poverty status in the past 12 months",
+ B15003:"Educational attainment (B15002 for 2006–10)",B25001:"Housing units",B25002:"Occupancy status",B25003:"Tenure",B25075:"Value (owner-occupied units)",
+ B25065:"Aggregate gross rent (with B25063, units paying cash rent)",B25070:"Gross rent as a percentage of household income",B25044:"Tenure by vehicles available",B08301:"Means of transportation to work"};
+let DSRC=[];
+function tableUrl(t,y){if(t==="B15003"&&y==="2010")t="B15002";return "https://data.census.gov/table/ACSDT5Y"+y+"."+t+"?g="+BH_GEOS}
+function dsup(t){let n=DSRC.indexOf(t);if(n<0){DSRC.push(t);n=DSRC.length-1}return '<sup class="cite"><a href="'+esc(tableUrl(t,"2024"))+'" target="_blank" rel="noopener" title="Census ACS table '+t+': '+esc(TNAME[t]||"")+'">'+(n+1)+'</a></sup>'}
+function dcite(h){return String(h).replace(/\s*\[\[m:(\w+)\]\]/g,(m,k)=>TABLE[k]?dsup(TABLE[k]):"").replace(/\s*\[\[(\w+)\]\]/g,(m,id)=>{const x=(window.PROF_SRC||{})[id];if(!x)return"";let n=DSRC.indexOf("src:"+id);if(n<0){DSRC.push("src:"+id);n=DSRC.length-1}return '<sup class="cite"><a href="'+esc(x.url)+'" target="_blank" rel="noopener" title="'+esc(x.title)+'">'+(n+1)+'</a></sup>'})}
+const M={
+ population:{l:"Population",f:"int"},pct_under_18:{l:"Under 18",f:"pct"},pct_65_plus:{l:"65 and older",f:"pct"},
+ pct_households_with_children:{l:"Households with children",f:"pct"},persons_per_household:{l:"People per household",f:"dec"},
+ pct_foreign_born:{l:"Born outside the U.S.",f:"pct"},pct_white_nh:{l:"White (non-Hispanic)",f:"pct"},pct_black_nh:{l:"Black (non-Hispanic)",f:"pct"},
+ pct_asian_nh:{l:"Asian (non-Hispanic)",f:"pct"},pct_hispanic:{l:"Hispanic or Latino",f:"pct"},pct_other_multi:{l:"Other or multiracial",f:"pct"},
+ median_household_income_2024usd:{l:"Median household income (2024 $)",f:"usd"},mean_household_income_2024usd:{l:"Mean household income (2024 $)",f:"usd"},
+ pct_poverty:{l:"Below the poverty line",f:"pct"},pct_bachelors_plus:{l:"Adults with a bachelor's degree or more",f:"pct"},
+ households:{l:"Households",f:"int"},housing_units:{l:"Housing units",f:"int"},pct_vacant:{l:"Vacant units",f:"pct"},
+ pct_owner_occupied:{l:"Owner-occupied homes",f:"pct"},pct_owner_homes_1m_plus:{l:"Owned homes valued $1M+",f:"pct"},
+ mean_gross_rent_2024usd:{l:"Average rent incl. utilities (2024 $)",f:"usd"},pct_rent_burdened:{l:"Renters paying 30%+ of income",f:"pct"},
+ pct_households_no_car:{l:"Households without a car",f:"pct"},pct_renter_households_no_car:{l:"Renter households without a car",f:"pct"},
+ pct_owner_households_no_car:{l:"Owner households without a car",f:"pct"},vehicles_available:{l:"Vehicles kept by residents",f:"int"},
+ vehicles_per_household:{l:"Vehicles per household",f:"dec"},pct_commute_transit:{l:"Commute by transit",f:"pct"},
+ pct_work_from_home:{l:"Work from home",f:"pct"},pct_commute_walk:{l:"Walk to work",f:"pct"},pct_commute_drive:{l:"Drive to work",f:"pct"},pct_commute_bike:{l:"Bike to work",f:"pct"}
+};
+function fv(v,f){if(v==null)return"—";if(f==="pct")return v.toFixed(1)+"%";if(f==="usd")return"$"+Math.round(v).toLocaleString("en-US");if(f==="dec")return v.toFixed(2);return Math.round(v).toLocaleString("en-US")}
+function fshort(v,f){if(v==null)return"";if(f==="usd")return v>=10000?"$"+Math.round(v/1000)+"K":v>=1000?"$"+(v/1000).toFixed(1)+"K":"$"+Math.round(v);if(f==="pct")return Math.round(v)+"%";if(f==="dec")return v.toFixed(2);return v>=10000?(v/1000).toFixed(1)+"K":Math.round(v).toLocaleString("en-US")}
+function mini(prof,key){
+  const m=M[key],vals=YRS.map(y=>prof.acs[y].bh[key]);const card=el("div","mini");card.appendChild(el("h3",null,m.l));
+  const W=260,H=96,pl=8,pr=8,pt=18,pb=18;const ok=vals.filter(v=>v!=null);let lo=Math.min(...ok),hi=Math.max(...ok);
+  if(m.f==="pct"){lo=Math.max(0,lo-8);hi=Math.min(100,hi+8)}else{const pad=(hi-lo)*0.25||hi*0.1;lo=Math.max(0,lo-pad);hi=hi+pad}
+  const x=i=>pl+i*(W-pl-pr)/(YRS.length-1),y=v=>pt+(H-pt-pb)*(1-(v-lo)/(hi-lo||1));
+  const ns="http://www.w3.org/2000/svg",svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.setAttribute("role","img");svg.setAttribute("aria-label",m.l+": "+YRS.map((yy,i)=>prof.acs_periods[yy]+" "+fv(vals[i],m.f)).join(", "));
+  const mk=(t,a)=>{const e=document.createElementNS(ns,t);for(const k in a)e.setAttribute(k,a[k]);return e};
+  svg.appendChild(mk("line",{class:"grid",x1:pl,x2:W-pr,y1:H-pb,y2:H-pb}));
+  const pts=vals.map((v,i)=>v==null?null:[x(i),y(v)]).filter(Boolean);
+  svg.appendChild(mk("path",{class:"area",d:"M"+pts.map(p=>p.join(",")).join("L")+`L${pts[pts.length-1][0]},${H-pb}L${pts[0][0]},${H-pb}Z`}));
+  svg.appendChild(mk("path",{class:"ln",d:"M"+pts.map(p=>p.join(",")).join("L")}));
+  vals.forEach((v,i)=>{if(v==null)return;const c=mk("circle",{cx:x(i),cy:y(v),r:4});svg.appendChild(c);
+    const hit=mk("circle",{class:"hit",cx:x(i),cy:y(v),r:14});const t=mk("title",{});t.textContent=prof.acs_periods[YRS[i]]+": "+fv(v,m.f);hit.appendChild(t);svg.appendChild(hit);
+    const lab=mk("text",{x:x(i),y:H-4,"text-anchor":i===0?"start":i===YRS.length-1?"end":"middle"});lab.textContent=YRS[i]==="2010"?"2006–10":YRS[i]==="2024"?"2020–24":prof.acs_periods[YRS[i]];svg.appendChild(lab);
+    if(i===0||i===YRS.length-1){const vl=mk("text",{class:"val",x:x(i),y:y(v)-8,"text-anchor":i===0?"start":"end"});vl.textContent=fshort(v,m.f);svg.appendChild(vl)}});
+  card.appendChild(svg);
+  const bk=prof.acs["2024"].brooklyn[key],ny=prof.acs["2024"].nyc[key];
+  card.appendChild(el("div","ref","2020–24: Brooklyn "+fv(bk,m.f)+" · NYC "+fv(ny,m.f)));
+  const t=TABLE[key];if(t){const sl=html("div","src","Source: Census ACS 5-year, table "+t+dsup(t)+" · ");YRS.forEach((y,i)=>{sl.appendChild(link(prof.acs_periods[y],tableUrl(t,y)));sl.appendChild(document.createTextNode(i<YRS.length-1?", ":" · "))});sl.appendChild(link("saved data",api("api/profile/raw/"+t)));card.appendChild(sl)}
+  return card;
+}
+async function dataPage(){
+  document.title="Neighborhood data · Neighborhood Projects";
+  const v=document.getElementById("view");v.textContent="";
+  const r=await fetch(api("api/profile"));if(!r.ok){v.appendChild(el("p","loading","The data hasn't been built yet."));return}
+  DSRC=[];const prof=await r.json();window.PROF_SRC=prof.sources||{};const now=prof.acs["2024"].bh,then=prof.acs["2010"].bh,bk=prof.acs["2024"].brooklyn,ny=prof.acs["2024"].nyc;
+  const box=el("div");box.style.cssText="display:flex;flex-direction:column;gap:40px";box.appendChild(await sharedBanner("data"));
+  const h=el("header");h.appendChild(el("span","eyebrow","Census Bureau ACS 2006–10 to 2020–24 · NYS DOT"));h.appendChild(el("h1",null,"Brooklyn Heights by the numbers"));
+  h.appendChild(el("p",null,"Who lives here, what they earn, how they live and get around, and how that has changed since 2010. Brooklyn Heights here is the city's official neighborhood area (NTA BK0201): six census tracts, about 26,000 people, from the Brooklyn Bridge to Atlantic Avenue west of Cadman Plaza and Court Street."));
+  box.appendChild(h);
+  const chg=(k)=>{const a=then[k],b=now[k];return a?((b-a)/a*100):null};
+  const tiles=[["Population",fv(now.population,"int"),"+"+chg("population").toFixed(0)+"% since 2006–10","population"],
+    ["Median household income",fv(now.median_household_income,"usd"),"Brooklyn "+fv(bk.median_household_income,"usd")+" · NYC "+fv(ny.median_household_income,"usd"),"median_household_income"],
+    ["Households without a car",fv(now.pct_households_no_car,"pct"),"Brooklyn "+fv(bk.pct_households_no_car,"pct")+" · down from "+fv(then.pct_households_no_car,"pct"),"pct_households_no_car"],
+    ["Owner-occupied homes",fv(now.pct_owner_occupied,"pct"),"Brooklyn "+fv(bk.pct_owner_occupied,"pct")+" · NYC "+fv(ny.pct_owner_occupied,"pct"),"pct_owner_occupied"],
+    ["Work from home",fv(now.pct_work_from_home,"pct"),"Was "+fv(prof.acs["2019"].bh.pct_work_from_home,"pct")+" in 2015–19","pct_work_from_home"],
+    ["Residents 65 and older",fv(now.pct_65_plus,"pct"),"Was "+fv(then.pct_65_plus,"pct")+" in 2006–10","pct_65_plus"]];
+  const ts=el("div","tiles");tiles.forEach(([k,val,c,key])=>{const t=el("div","tile");t.appendChild(el("span","k",k));t.appendChild(html("span","v",esc(val)+dsup(TABLE[key])));t.appendChild(el("span","c",c));ts.appendChild(t)});box.appendChild(ts);
+  const groups=[["People","Who lives here",["population","pct_65_plus","pct_under_18","pct_households_with_children","persons_per_household","pct_foreign_born","pct_white_nh","pct_asian_nh","pct_hispanic"]],
+    ["Money and housing","Income, rent and ownership",["median_household_income_2024usd","mean_gross_rent_2024usd","pct_rent_burdened","pct_owner_occupied","pct_owner_homes_1m_plus","pct_poverty","housing_units","households","pct_bachelors_plus"]],
+    ["Getting around","Cars and commuting",["pct_households_no_car","vehicles_available","vehicles_per_household","pct_commute_transit","pct_work_from_home","pct_commute_walk","pct_commute_drive","pct_commute_bike","pct_renter_households_no_car"]]];
+  groups.forEach(([eb,title,keys])=>{const s=section("g-"+eb,eb,title);const g=el("div","multiples");keys.forEach(k=>g.appendChild(mini(prof,k)));s.appendChild(g);box.appendChild(s)});
+  // what it suggests
+  const ns=section("needs","Reading the numbers","What this suggests for neighborhood needs");const nl=el("div","notes");
+  [ "<strong>Aging in place.</strong> The share of residents 65 and older rose from "+fv(then.pct_65_plus,"pct")+"[[m:pct_65_plus]]"+" to "+fv(now.pct_65_plus,"pct")+"[[m:pct_65_plus]]"+". That points to demand for accessible sidewalks and transit, benches, senior services and home-care access, and makes construction-related sidewalk closures more disruptive.",
+    "<strong>A car-light neighborhood.</strong> "+fv(now.pct_households_no_car,"pct")+"[[m:pct_households_no_car]]"+" of households have no car (Brooklyn: "+fv(bk.pct_households_no_car,"pct")+"[[m:pct_households_no_car]]"+"), and only "+fv(now.pct_commute_drive,"pct")+"[[m:pct_commute_drive]]"+" of workers drive to work. Residents keep about "+fv(now.vehicles_available,"int")+"[[m:vehicles_available]]"+" vehicles in total, though, up from "+fv(then.vehicles_available,"int")+"[[m:vehicles_available]]"+".",
+    "<strong>More people at home.</strong> Working from home went from "+fv(prof.acs["2019"].bh.pct_work_from_home,"pct")+"[[m:pct_work_from_home]]"+" to "+fv(now.pct_work_from_home,"pct")+"[[m:pct_work_from_home]]"+" after 2020, while transit commuting fell from "+fv(prof.acs["2019"].bh.pct_commute_transit,"pct")+"[[m:pct_commute_transit]]"+" to "+fv(now.pct_commute_transit,"pct")+"[[m:pct_commute_transit]]"+". Daytime noise, dust and construction hours matter to more residents than before.",
+    "<strong>Growth is arriving.</strong> Housing units rose from about "+fv(then.housing_units,"int")+"[[m:housing_units]]"+" to "+fv(now.housing_units,"int")+"[[m:housing_units]]"+". The tracked projects would add roughly 930 more homes (661 at Columbia Heights, 136 at One Montague Place, about 61 at the Bossert, 75 at 120 Court, per each project's sources), about 7% more, plus families with children: schools, parks and the Promenade will feel it.",
+    "<strong>High incomes, with a renter majority.</strong> Median household income is about "+fv(now.median_household_income,"usd")+"[[m:median_household_income]]"+", more than twice Brooklyn's, and poverty fell to "+fv(now.pct_poverty,"pct")+"[[m:pct_poverty]]"+". Still, "+fv(now.pct_renter_occupied,"pct")+"[[m:pct_renter_occupied]]"+" of homes are rented and "+fv(now.pct_rent_burdened,"pct")+"[[m:pct_rent_burdened]]"+" of renters pay 30% or more of income on rent. Average rent rose from "+fv(then.mean_gross_rent_2024usd,"usd")+"[[m:mean_gross_rent_2024usd]]"+" to "+fv(now.mean_gross_rent_2024usd,"usd")+"[[m:mean_gross_rent_2024usd]]"+" in today's dollars.",
+    "<strong>Whiter than the borough, though less than before.</strong> White non-Hispanic residents are "+fv(now.pct_white_nh,"pct")+"[[m:pct_white_nh]]"+" of the population, down from "+fv(then.pct_white_nh,"pct")+"[[m:pct_white_nh]]"+" (Brooklyn: "+fv(bk.pct_white_nh,"pct")+"[[m:pct_white_nh]]"+"). The Black share is "+fv(now.pct_black_nh,"pct")+"[[m:pct_black_nh]]"+", against "+fv(bk.pct_black_nh,"pct")+"[[m:pct_black_nh]]"+" boroughwide. The affordable units at Columbia Heights (about 165) would be the area's largest new affordable housing in years."
+  ].forEach(t=>nl.appendChild(html("p",null,dcite(t))));ns.appendChild(nl);box.appendChild(ns);
+  // table
+  const ts2=section("table","All the numbers","Table");const tb=el("div","tablebox");const t=el("table");
+  t.innerHTML="<thead><tr><th>Measure</th><th>Table</th><th>2006–10</th><th>2011–15</th><th>2015–19</th><th>2020–24</th><th>Brooklyn 2020–24</th><th>NYC 2020–24</th></tr></thead>";
+  const body=el("tbody");Object.keys(M).forEach(k=>{const tr=el("tr");tr.appendChild(el("td",null,M[k].l));const tc=el("td","num mono");tc.appendChild(link(TABLE[k],tableUrl(TABLE[k],"2024")));tr.appendChild(tc);YRS.forEach(y=>tr.appendChild(el("td","num",fv(prof.acs[y].bh[k],M[k].f))));tr.appendChild(el("td","num",fv(bk[k],M[k].f)));tr.appendChild(el("td","num",fv(ny[k],M[k].f)));body.appendChild(tr)});
+  t.appendChild(body);tb.appendChild(t);ts2.appendChild(tb);box.appendChild(ts2);
+  const d=prof.decennial_population;
+  const f=el("footer");[
+   "Census counts (every household, not a survey): "+fv(d["2010"].bh,"int")+" people in 2010[[dec2010]] and "+fv(d["2020"].bh,"int")+" in 2020[[dec2020]] (+"+((d["2020"].bh/d["2010"].bh-1)*100).toFixed(1)+"%).",
+   "ACS figures are 5-year survey estimates with margins of error that can be several points for an area this size; treat small changes as noise. Medians for the six tracts are estimated from income brackets. Dollar amounts in charts are adjusted to 2024 dollars with the CPI-U. Rent is the average gross rent (rent plus utilities) for units paying cash rent.",
+   "Area: "+prof.area+". Built "+fmtD(prof.built)+" by scripts/build_profile.py from data.census.gov and data.ny.gov."
+  ].forEach(x=>f.appendChild(html("p",null,dcite(esc(x)))));
+  const ss=section("sources","Sources","Where every number comes from","Each small number links to its source. The Census responses behind every chart are kept (saved data), so the figures can be rebuilt even if the Census site changes.");
+  const ol=el("ol","srclist");DSRC.forEach(t=>{const li=el("li");
+    if(t.startsWith("src:")){const id=t.slice(4),x=prof.sources[id];li.appendChild(link(x.title,x.url));li.appendChild(el("span","m"," — "+x.publisher));const ln=el("div","sv");if(x.raw)ln.appendChild(link("Saved data",api("api/profile/raw/"+x.raw)));li.appendChild(ln)}
+    else{li.appendChild(document.createTextNode("Census Bureau, American Community Survey 5-year estimates, table "+t+": "+(TNAME[t]||"")+". "));YRS.forEach((y,i)=>{li.appendChild(link(prof.acs_periods[y],tableUrl(t,y)));li.appendChild(document.createTextNode(i<YRS.length-1?", ":""))});
+      const ln=el("div","sv");ln.appendChild(link("Saved data (all years; Brooklyn Heights tracts, Brooklyn, NYC)",api("api/profile/raw/"+t)));li.appendChild(ln)}
+    ol.appendChild(li)});
+  ss.appendChild(ol);box.appendChild(ss);box.appendChild(f);
+  v.appendChild(box);
+}
+
+
+function tables(p){
+  return (p.tables||[]).map(tb=>{const s=section("table-"+tb.id,tb.eyebrow||"Data",tb.title,tb.intro);const box=el("div","tablebox");const t=el("table");
+    const hr=el("tr");tb.head.forEach(h=>hr.appendChild(el("th",null,h)));const th=el("thead");th.appendChild(hr);t.appendChild(th);
+    const body=el("tbody");tb.rows.forEach(r=>{const tr=el("tr");r.forEach(c=>tr.appendChild(ct("td",null,c)));body.appendChild(tr)});t.appendChild(body);box.appendChild(t);s.appendChild(box);return s});
+}
+function charts(p){
+  return (p.charts||[]).map(c=>{
+    const s=section("chart-"+c.id,c.eyebrow||"Data",c.title,c.intro);const card=el("div","card");
+    const W=880,H=260,pl=56,pr=12,pt=24,pb=30,n=c.series.length,max=Math.max(...c.series.map(x=>x[1]))*1.1;
+    const ns="http://www.w3.org/2000/svg",svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.style.cssText="width:100%;height:auto;display:block";
+    svg.setAttribute("role","img");svg.setAttribute("aria-label",c.title+": "+c.series.map(x=>x[0]+" "+x[1].toLocaleString("en-US")).join(", "));
+    const mk=(t,a,txt)=>{const e=document.createElementNS(ns,t);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;return e};
+    const raw=max/4,mag=Math.pow(10,Math.floor(Math.log10(raw))),step=[1,2,5,10].find(m=>m*mag>=raw)*mag;
+    for(let v=0;v<=max;v+=step){const yy=pt+(H-pt-pb)*(1-v/max);svg.appendChild(mk("line",{x1:pl,x2:W-pr,y1:yy,y2:yy,stroke:"var(--line)"}));svg.appendChild(mk("text",{x:pl-8,y:yy+4,"text-anchor":"end",fill:"var(--muted)","font-size":"11"},v>=1000?(v/1000)+"K":v))}
+    const bw=Math.min(48,(W-pl-pr)/n-6);
+    c.series.forEach(([lab,val],i)=>{const cx=pl+(i+.5)*(W-pl-pr)/n,yy=pt+(H-pt-pb)*(1-val/max),hgt=H-pb-yy;
+      const g=mk("g",{});g.appendChild(mk("path",{d:`M${cx-bw/2},${H-pb}V${yy+4}q0,-4 4,-4h${bw-8}q4,0 4,4V${H-pb}Z`,fill:"var(--accent)"}));
+      g.appendChild(mk("rect",{x:cx-bw/2-3,y:pt,width:bw+6,height:H-pt-pb,fill:"transparent"}));g.appendChild(mk("title",{},lab+": "+val.toLocaleString("en-US")+(c.unit?" "+c.unit:"")));svg.appendChild(g);
+      svg.appendChild(mk("text",{x:cx,y:H-10,"text-anchor":"middle",fill:"var(--muted)","font-size":"11"},lab));
+      if(i===0||i===n-1||val===Math.max(...c.series.map(x=>x[1])))svg.appendChild(mk("text",{x:cx,y:yy-6,"text-anchor":"middle",fill:"var(--fg)","font-size":"11","font-weight":"600"},(val/1000).toFixed(0)+"K"))});
+    const wrap=el("div");wrap.style.overflowX="auto";wrap.appendChild(svg);card.appendChild(wrap);if(c.note)card.appendChild(ct("p","syncline",c.note));s.appendChild(card);return s});
+}
+
+async function overview(){
+  document.title="Neighborhood Projects";
+  const v=document.getElementById("view");v.textContent="";
+  const [list,acts]=await Promise.all([fetch(api("api/projects")).then(r=>r.json()),fetch(api("api/activity?limit=12")).then(r=>r.json())]);
+  const box=el("div");box.style.cssText="display:flex;flex-direction:column;gap:40px";box.appendChild(await sharedBanner("overview"));
+  const h=el("header");h.appendChild(el("span","eyebrow","Brooklyn Heights · Community District 2 · "+fmtD(TODAY)));
+  h.appendChild(el("h1",null,"What's being built nearby"));
+  const ulurp=list.filter(p=>/ULURP/.test(p.kind||"")).length;
+  h.appendChild(el("p",null,list.length+" projects tracked. "+(ulurp?ulurp+" needs a public rezoning vote (ULURP); the rest go ahead as of right or through Landmarks, so the steps to watch are building permits, Landmarks approvals and condo offering plans. ":"")+"The city's records are checked every few hours"+(STATIC?" and this page is updated when something changes.":", and a phone alert goes out when something changes.")));
+  box.appendChild(h);
+  // map + upcoming
+  const sec=section("map-sec","Map","Where they are");const g=el("div","ov-grid");
+  const m=el("div");m.id="map";g.appendChild(m);
+  const up=el("div","card");up.appendChild(el("h3",null,"Coming up"));const ul=el("div","upcoming");
+  const nexts=list.map((p,i)=>({p,i,e:p.next})).filter(x=>x.e).sort((a,b)=>a.e.d.localeCompare(b.e.d));
+  if(!nexts.length)ul.appendChild(el("p","empty","No dates ahead."));
+  nexts.forEach(({p,i,e})=>{const r=el("div","ev");r.appendChild(el("span","date",e.d.length===10?fmtD(e.d):e.d.length===7?fmtD(e.d):e.d));const b=el("div");b.appendChild(el("div","proj",(i+1)+" · "+p.short_name));b.appendChild(ct("div","t",e.t,p.sources));b.appendChild(el("span","pill "+TONE[e.k],{ok:"Scheduled",acc:"Target",est:"Estimate"}[e.k]));r.appendChild(b);ul.appendChild(r)});
+  up.appendChild(ul);g.appendChild(up);sec.appendChild(g);box.appendChild(sec);
+  // cards
+  const cs=section("projects","Projects","Where each one stands");const cards=el("div","cards");
+  list.forEach((p,i)=>{const a=el("div","pcard");const t=el("h3");t.appendChild(el("span","num",String(i+1)));t.appendChild(document.createTextNode(p.name));a.appendChild(t);
+    a.appendChild(el("div","addr",p.address));a.appendChild(el("span","pill "+(TONE[p.status.tone]||"p-est"),strip(p.status.pill)));a.appendChild(el("p",null,strip(p.status.headline)));
+    const dl=el("dl","kv");const add=(k,val)=>{if(!val)return;dl.appendChild(el("dt",null,k));dl.appendChild(ct("dd",null,val,p.sources))};
+    const fact=(re)=>{const f=(p.facts||[]).find(([k])=>re.test(k));return f&&f[1]};
+    add("Homes",fact(/^Homes/));add("Size",fact(/^(Height|Size)/));add("Next",p.next?fmtD(p.next.d)+": "+p.next.t:null);add("Latest",p.latest?fmtD(p.latest.at.slice(0,10))+": "+p.latest.title:"No changes since watching began");
+    a.appendChild(dl);const op=el("a","open","Open project →");op.href="#"+p.slug;a.appendChild(op);cards.appendChild(a)});
+  cs.appendChild(cards);box.appendChild(cs);
+  // recent updates
+  const rs=section("recent","Watching the city's records","Recent updates","New filings, documents and votes across all projects.");const f=el("div","feed");
+  if(!acts.length)f.appendChild(el("p","empty","Nothing new yet. The first changes after today will appear here."));
+  acts.forEach(x=>{const r=el("div","item");r.appendChild(el("span","date",fmtD(x.at.slice(0,10))));const b=el("div");const t=el("div","t");t.appendChild(x.url?link(x.project_name+": "+x.title,x.url):document.createTextNode(x.project_name+": "+x.title));b.appendChild(t);if(x.detail)b.appendChild(el("div","d",x.detail));r.appendChild(b);f.appendChild(r)});
+  rs.appendChild(f);box.appendChild(rs);
+  v.appendChild(box);
+  drawMap(list);
+}
+function drawMap(list){
+  if(!window.L){document.getElementById("map").appendChild(el("p","empty","The map couldn't load."));return}
+  const dark=matchMedia("(prefers-color-scheme: dark)").matches;
+  const map=L.map("map",{scrollWheelZoom:false});
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,className:dark?"tiles-dark":"",attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
+  const pts=[];
+  list.forEach((p,i)=>{if(!p.location)return;pts.push(p.location);
+    const icon=L.divIcon({className:"",html:'<div class="pin t-'+(p.status.tone||"est")+'">'+(i+1)+'</div>',iconSize:[28,28],iconAnchor:[14,14]});
+    const pop=el("div");pop.appendChild(el("b",null,p.name));pop.appendChild(el("div",null,p.address));pop.appendChild(el("div",null,strip(p.status.pill)));const a=el("a",null,"Open project");a.href="#"+p.slug;pop.appendChild(a);
+    L.marker(p.location,{icon,title:p.name}).addTo(map).bindPopup(pop)});
+  if(pts.length)map.fitBounds(pts,{padding:[40,40],maxZoom:16});
+}
+boot().catch(()=>{document.getElementById("view").innerHTML='<p class="loading">Couldn\'t load the projects. Check that the Neighborhood service is running on the mini.</p>'});
+</script>
+</body>
+</html>

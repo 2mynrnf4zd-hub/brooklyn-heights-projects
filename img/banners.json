@@ -1,0 +1,22 @@
+{
+ "overview": {
+  "file": "overview.jpg",
+  "alt": "Henry Street in Brooklyn Heights, lined with brownstones and bare trees",
+  "caption": "Henry Street, Brooklyn Heights",
+  "creator": "Jay Woodworth",
+  "license": "CC BY 2.0",
+  "license_url": "https://creativecommons.org/licenses/by/2.0/",
+  "source_url": "https://www.flickr.com/photos/8518656@N07/3296375180",
+  "position": "50% 55%"
+ },
+ "data": {
+  "file": "data.jpg",
+  "alt": "Brooklyn Heights brownstones behind street trees",
+  "caption": "Brooklyn Heights brownstones",
+  "creator": "Jay Woodworth",
+  "license": "CC BY 2.0",
+  "license_url": "https://creativecommons.org/licenses/by/2.0/",
+  "source_url": "https://www.flickr.com/photos/8518656@N07/3295631347",
+  "position": "50% 45%"
+ }
+}
