@@ -176,6 +176,7 @@ footer{color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padd
 .mini svg circle{fill:var(--accent);stroke:var(--surface);stroke-width:2}
 .mini svg circle.hit{fill:transparent;stroke:none;cursor:default}
 .notes{display:flex;flex-direction:column;gap:8px;max-width:75ch}
+.p-priv{background:var(--est-soft);color:var(--est);font-size:.7rem;margin-top:4px}
 sup.cite{font-size:.68em;line-height:0;margin-left:1px}
 sup.cite a{text-decoration:none;font-family:var(--mono);padding:0 2px;border-radius:3px;background:var(--accent-soft)}
 .pcard .open{font-size:.86rem;font-weight:600;text-decoration:none;margin-top:auto}
@@ -242,6 +243,7 @@ async function sharedBanner(k){if(!BANNERS){try{BANNERS=await (await fetch("img/
 function esc(t){return String(t==null?"":t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 // [[id]] or [[id1,id2]] in curated text -> numbered superscript links to the source (numbers follow the sources list)
 function cite(h,src){src=src||SRC;const keys=Object.keys(src);return String(h==null?"":h).replace(/\s*\[\[([^\]]+)\]\]/g,(m,ids)=>ids.split(",").map(id=>{id=id.trim();const s=src[id];if(!s)return"";return '<sup class="cite"><a href="'+esc(s.url)+'" target="_blank" rel="noopener" title="'+esc(s.title)+'">'+(keys.indexOf(id)+1)+'</a></sup>'}).join(""))}
+function privTag(){return STATIC?null:el("span","pill p-priv","Private · not on the public copy")}
 function ct(tag,cls,text,src){return html(tag,cls,cite(esc(text),src))}
 function strip(t){return String(t==null?"":t).replace(/\s*\[\[[^\]]*\]\]/g,"")}
 
@@ -327,7 +329,7 @@ function calendar(p){
     list.forEach(e=>{const cmp=e.d.length===4?e.d+"-12-31":(e.d.length===7?e.d+"-31":e.d);
       if(!placed&&cmp>TODAY&&key===TODAY.slice(0,7)){evs.appendChild(el("div","today","Today · "+fmtD(TODAY)));placed=true}
       const r=el("div","ev"+(cmp<TODAY?" past":""));r.appendChild(el("span","date",e.d.length===10?fmtD(e.d).replace(/, \d+$/,""):(e.d.length===7?"Month":"Year")));
-      const b=el("div");b.appendChild(ct("div","t",e.t));if(e.n)b.appendChild(ct("div","d",e.n));r.appendChild(b);r.appendChild(el("span","pill "+TONE[e.k],e.k==="ok"&&cmp>=TODAY?"Scheduled":label[e.k]));evs.appendChild(r)});
+      const b=el("div");b.appendChild(ct("div","t",e.t));if(e.n)b.appendChild(ct("div","d",e.n));if(e.private&&privTag())b.appendChild(privTag());r.appendChild(b);r.appendChild(el("span","pill "+TONE[e.k],e.k==="ok"&&cmp>=TODAY?"Scheduled":label[e.k]));evs.appendChild(r)});
     m.appendChild(evs);root.appendChild(m);
   }
   s.appendChild(root);return s;
@@ -341,30 +343,30 @@ function requests(p){
     if(b.note){const n=ct("p","mono",b.note);n.style.color="var(--muted)";c.appendChild(n)}g.appendChild(c)});s.appendChild(g)}
   return s;
 }
-const CATS={Filing:"Application filing",Environmental:"Environmental review",Notice:"Notice",Press:"Press",Reference:"Reference",Record:"City record"};
+const CATS={Community:"Community",Filing:"Application filing",Environmental:"Environmental review",Notice:"Notice",Press:"Press",Reference:"Reference",Record:"City record"};
 function library(p){
   const s=section("library","Library","Filings and background","Curated filings and background. City records lists everything the watchers have found in the Buildings and property records.");
   const c=el("div","controls");
-  [["all","All"],["Filing","Filings"],["Environmental","Environmental"],["Notice","Notices"],["Press","Press"],["Reference","Reference"],["Record","City records"]].forEach(([f,t])=>{const b=el("button","chip",t);b.dataset.f=f;b.setAttribute("aria-pressed",String(f==="all"));b.addEventListener("click",()=>{filt=f;c.querySelectorAll(".chip").forEach(o=>o.setAttribute("aria-pressed",String(o===b)));lib(p)});c.appendChild(b)});
+  [["all","All"],["Community","Community"],["Filing","Filings"],["Environmental","Environmental"],["Notice","Notices"],["Press","Press"],["Reference","Reference"],["Record","City records"]].forEach(([f,t])=>{const b=el("button","chip",t);b.dataset.f=f;b.setAttribute("aria-pressed",String(f==="all"));b.addEventListener("click",()=>{filt=f;c.querySelectorAll(".chip").forEach(o=>o.setAttribute("aria-pressed",String(o===b)));lib(p)});c.appendChild(b)});
   const q=el("input");q.id="q";q.type="search";q.placeholder="Search the library";q.setAttribute("aria-label","Search the library");q.addEventListener("input",()=>lib(p));c.appendChild(q);
   s.appendChild(c);const l=el("div","lib");l.id="lib";s.appendChild(l);return s;
 }
 function allDocs(p){
   const seen=new Set((p.docs||[]).map(d=>d.u));
   const rec=(p.records||[]).filter(r=>!seen.has(r.url)).map(r=>({d:r.date||"",c:"Record",t:r.label,u:r.url,n:r.kind==="document"?"From City Planning's record ("+r.value+")":(r.value||"")}));
-  return [...(p.docs||[]),...rec].sort((a,b)=>(b.d||"").localeCompare(a.d||""));
+  return [...(p.docs||[]).map(d=>Object.assign({},d,{p:d.private})),...rec].sort((a,b)=>(b.d||"").localeCompare(a.d||""));
 }
 function lib(p){
   const q=(document.getElementById("q")||{value:""}).value.trim().toLowerCase();const root=document.getElementById("lib");if(!root)return;root.textContent="";
   const rows=allDocs(p).filter(x=>(filt==="all"?x.c!=="Record":x.c===filt)&&(!q||(x.t+" "+x.n).toLowerCase().includes(q)));
   if(!rows.length){root.appendChild(el("div","empty","Nothing matches. Try a different word or clear the filter."));return}
-  const draw=(x,into)=>{const r=el("div","doc");r.appendChild(el("span","date",fmtD(x.d)));const b=el("div");b.appendChild(link(x.t,x.u));if(x.n)b.appendChild(ct("div","note",x.n));r.appendChild(b);r.appendChild(el("span","cat",CATS[x.c]||x.c));into.appendChild(r)};
+  const draw=(x,into)=>{const r=el("div","doc");r.appendChild(el("span","date",fmtD(x.d)));const b=el("div");b.appendChild(link(x.t,x.u));if(x.n)b.appendChild(ct("div","note",x.n));if(x.p&&privTag())b.appendChild(privTag());r.appendChild(b);r.appendChild(el("span","cat",CATS[x.c]||x.c));into.appendChild(r)};
   rows.slice(0,40).forEach(x=>draw(x,root));
   if(rows.length>40){const d=el("details","more");d.appendChild(el("summary",null,"Show "+(rows.length-40)+" more"));rows.slice(40).forEach(x=>draw(x,d));root.appendChild(d)}
 }
 function watchlist(p){
   const s=section("watch","Open questions","What to watch");const g=el("div","watch");
-  (p.watch||[]).forEach(w=>{const c=el("div","card");c.appendChild(el("h3",null,w.h));c.appendChild(html("p",null,cite(w.p)));g.appendChild(c)});s.appendChild(g);return s;
+  (p.watch||[]).forEach(w=>{const c=el("div","card");c.appendChild(el("h3",null,w.h));if(w.private&&privTag())c.appendChild(privTag());c.appendChild(html("p",null,cite(w.p)));g.appendChild(c)});s.appendChild(g);return s;
 }
 function footer(p){const f=el("footer");(p.footer||[]).forEach(t=>f.appendChild(html("p",null,cite(t))));return f}
 function sourcesSec(p){
@@ -374,7 +376,8 @@ function sourcesSec(p){
     const a=link(x.title,x.url);li.appendChild(a);
     const meta=[x.publisher,x.date?fmtD(x.date):null].filter(Boolean).join(", ");if(meta)li.appendChild(el("span","m"," — "+meta));
     const sv=(p.saved||{})[id];const line=el("div","sv");
-    if(sv&&sv.status==="saved"){line.appendChild(link("Saved copy","archive/"+sv.file));line.appendChild(document.createTextNode(" · saved "+fmtD(sv.saved_at)+(String(sv.via||"").startsWith("wayback")?" from the Internet Archive":"")))}
+    if(x.private){line.appendChild(document.createTextNode("Private document kept on the mini"));if(x.original){line.appendChild(document.createTextNode(" · "));line.appendChild(link("original file",x.original))}if(privTag())li.appendChild(privTag())}
+    else if(sv&&sv.status==="saved"){line.appendChild(link("Saved copy","archive/"+sv.file));line.appendChild(document.createTextNode(" · saved "+fmtD(sv.saved_at)+(String(sv.via||"").startsWith("wayback")?" from the Internet Archive":"")))}
     else if(sv&&sv.status==="private")line.textContent="A saved copy is kept privately; this source isn't republished here.";
     else line.textContent=sv&&sv.status==="failed"?"Couldn't save a copy (the site blocks downloads and the Internet Archive has none). Retried weekly.":"Copy not saved yet; it's saved at the next check.";
     li.appendChild(line);ol.appendChild(li)});
@@ -488,7 +491,7 @@ async function dataPage(){
 
 
 function tables(p){
-  return (p.tables||[]).map(tb=>{const s=section("table-"+tb.id,tb.eyebrow||"Data",tb.title,tb.intro);const box=el("div","tablebox");const t=el("table");
+  return (p.tables||[]).map(tb=>{const s=section("table-"+tb.id,tb.eyebrow||"Data",tb.title,tb.intro);if(tb.private&&privTag())s.querySelector(".sechead").appendChild(privTag());const box=el("div","tablebox");const t=el("table");
     const hr=el("tr");tb.head.forEach(h=>hr.appendChild(el("th",null,h)));const th=el("thead");th.appendChild(hr);t.appendChild(th);
     const body=el("tbody");tb.rows.forEach(r=>{const tr=el("tr");r.forEach(c=>tr.appendChild(ct("td",null,c)));body.appendChild(tr)});t.appendChild(body);box.appendChild(t);s.appendChild(box);return s});
 }
